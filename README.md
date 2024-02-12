@@ -15,3 +15,10 @@ The main purpose of the script is to analyze your focal length preferences, maki
 ![image](https://github.com/Lizhenghe-Chen/Camera-parameter-analysis/assets/61171413/930d3740-cc55-4413-8da1-d4b41b4fc3fc)
 
 
+# Note
+```
+脚本尚未进行完整测试（鲁棒性等），可能在一些没考虑到的情况下出现错误。  
+The script has not been fully tested (robustness, etc.), and errors may occur in some cases that have not been considered.
+```
+
+
