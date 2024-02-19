@@ -8,7 +8,7 @@ import os
 from PIL import Image
 import sys
 
-file_path = "D:\媒体\EOS R7"
+file_path = "D:\EOSR7"
 file_type_a = ".jpg", ".jpeg", ".png"
 file_type_A = tuple(map(str.upper, file_type_a))
 
@@ -43,9 +43,9 @@ def get_focal_length(image_path):
     try:
         focal_length = Image.open(image_path)._getexif()[37386]
     except:
-        print("Error image, may not have focal length", image_path)
+        PrintErrorImage(image_path)
         return
-    
+
     return focal_length
 
 
@@ -58,7 +58,7 @@ def get_F_stop(image_path):
     try:
         F_stop = Image.open(image_path)._getexif()[33437]
     except:
-        print("Error image, may not have F-stop", image_path)
+        PrintErrorImage(image_path)
         return
     return F_stop
 
@@ -72,7 +72,7 @@ def get_ISO(image_path):
     try:
         ISO = Image.open(image_path)._getexif()[34855]
     except:
-        print("Error image, may not have ISO", image_path)
+        PrintErrorImage(image_path)
         return
     return ISO
 
@@ -86,20 +86,33 @@ def get_shutter_speed(image_path):
     try:
         shutter_speed = Image.open(image_path)._getexif()[33434]
     except:
-        print("Error image, may not have shutter speed", image_path)
+        PrintErrorImage(image_path)
         return
     return shutter_speed
 
 
-def print_progress(current, total):
+def PrintErrorImage(image_path):
+    print(
+        "Error image: ",
+        image_path,
+        "may not have focal length, F-stop, ISO, or shutter speed",
+    )
+
+
+def print_progress(progressName, current, total):
     """
     PRINT THE PROGRESS OF THE PROCESS
     :param current: the current number of the process
     :param total: the total number of the process
     """
     progress = current / total
+    # print % without 0
     sys.stdout.write(
-        "\rProgress: [{:<50}] {:.0f}%".format("=" * int(progress * 50), progress * 100)
+        "\r"
+        + progressName
+        + " Progress: [{0:50s}] {1:.1f}%".format(
+            "=" * int(progress * 50), progress * 100
+        )
     )
     sys.stdout.flush()
 
@@ -122,7 +135,7 @@ for jpg_path in jpg_path_list:
     ISO_list.append(ISO)
     focal_length_list.append(focal_length)
     F_stop_list.append(F_stop)
-    print_progress(len(shutter_speed_list), len(jpg_path_list))
+    print_progress("Reading Images", len(shutter_speed_list), len(jpg_path_list))
 
 # %%
 # 将数据存储到pandas中, index 为jpg_path_list
@@ -134,6 +147,16 @@ data = {
 }
 images_df = pd.DataFrame(data, index=jpg_path_list)
 images_df
+
+# %% [markdown]
+# # 搜索目录内图片名称来确保图片是否被正确读取 | Search the directory for image names to ensure that the images are read correctly
+# 
+
+# %%
+target_image_path = "IMG_1339.JPG"
+for index in images_df.index:
+    if index.endswith(target_image_path):
+        print(target_image_path + " was found at index: ", index)
 
 # %% [markdown]
 # # 分析图片的焦距（如果你有一个变焦镜头的话） | Analyze the focal length of the image (if you have a zoom lens)
@@ -200,22 +223,22 @@ def count_focal_length(df, dict):
         elif focal_length < 2000:
             dict["1600-2000"] += 1
         progress += 1
-        print_progress(progress, len(df))
+        print_progress("Counting Focal Length", progress, len(df))
     return invalid_count
 
 
 invalid_count = count_focal_length(images_df, focal_length_dict)
-print("Invalid focal length count: ", invalid_count)
+print(" Invalid focal length count: ", invalid_count)
 focal_length_dict
 
 # %%
-#以柱状图的形式展示焦段字典，plot标题为照片总数，y轴为焦段，x轴为照片数量，并在每个柱状图上显示照片数量
+# 以柱状图的形式展示焦段字典，plot标题为照片总数，y轴为焦段，x轴为照片数量，并在每个柱状图上显示照片数量
 plt.figure(figsize=(15, 5))
 focal_length_series = pd.Series(focal_length_dict)
 focal_length_series.plot(kind="bar", title=str.upper("focal length distribution"))
 for x, y in enumerate(focal_length_series):
     plt.text(x, y, "%s" % y, ha="center", va="bottom")
-plt.legend(["Total valid number of the image: " + str(TOTAL_SIZE- invalid_count)])
+plt.legend(["Total valid number of the image: " + str(TOTAL_SIZE - invalid_count)])
 plt.xticks(rotation=0)
 plt.xlabel("focal length(mm)")
 plt.ylabel("number of the image")
@@ -263,7 +286,7 @@ focal_length_series_custom.plot(
 for x, y in enumerate(focal_length_series_custom):
     plt.text(x, y, "%s" % y, ha="center", va="bottom")
 plt.xticks(rotation=0)
-plt.legend(["Total number of valid image: " +  str(TOTAL_SIZE- invalid_count)])
+plt.legend(["Total number of valid image: " + str(TOTAL_SIZE - invalid_count)])
 plt.xlabel("focal length(mm)")
 plt.ylabel("number of the image")
 plt.show(block=False)
@@ -274,6 +297,7 @@ plt.show(block=False)
 # %%
 # 统计光圈值，遍历images_df,获取每张图片的光圈值,如果光圈值不在字典中，则将其添加到字典中
 F_stop_dict = {}
+
 
 def count_F_stop(df, dict):
     progress = 0
@@ -289,34 +313,32 @@ def count_F_stop(df, dict):
         else:
             dict[F_stop] += 1
         progress += 1
-        print_progress(progress, len(df))
+        print_progress("Counting F-stop", progress, len(df))
     return dict, invalid_count
 
 
-invalid_count= count_F_stop(images_df, F_stop_dict)[1] 
+invalid_count = count_F_stop(images_df, F_stop_dict)[1]
 # 根据F_stop_dict 的键排序，以便于后续画图
 F_stop_dict = dict(sorted(F_stop_dict.items()))
 
 # %%
-#以柱状图的形式展示光圈值字典，plot标题为照片总数，y轴为光圈值，x轴为照片数量，并在每个柱状图上显示照片数量
+# 以柱状图的形式展示光圈值字典，plot标题为照片总数，y轴为光圈值，x轴为照片数量，并在每个柱状图上显示照片数量
 plt.figure(figsize=(15, 5))
 F_stop_series = pd.Series(F_stop_dict)
-F_stop_series.plot(kind="bar", title=str.upper("F-stop distribution")
-)
+F_stop_series.plot(kind="bar", title=str.upper("F-stop distribution"))
 for x, y in enumerate(F_stop_series):
     plt.text(x, y, "%s" % y, ha="center", va="bottom")
 plt.xlabel("F-stop(/f)")
 plt.ylabel("number of the image")
-plt.legend(["Total number of valid image: " + str(TOTAL_SIZE- invalid_count)])
+plt.legend(["Total number of valid image: " + str(TOTAL_SIZE - invalid_count)])
 plt.xticks(rotation=0)
 plt.show(block=False)
-
 
 # %% [markdown]
 # # 分析图片的快门速度？
 
 # %%
-#To be continued??
+# To be continued??
 
 # %% [markdown]
 # # 快门速度、光圈、焦距之间的关系？| Relationship between shutter speed, aperture, and focal length?
@@ -350,14 +372,14 @@ plt.ylabel("ISO")
 plt.show(block=False)
 
 # %%
-#以光圈值为x轴，快门速度为y轴，焦距为z轴，ISO值为颜色（值越大透明度越低）绘制3D散点图
+# 以光圈值为x轴，快门速度为y轴，焦距为z轴，ISO值为颜色（值越大透明度越低）绘制3D散点图
 # draw the 3D scatter plot of the relationship between F-stop, shutter speed, focal length and ISO
 
-#remove the invalid data
+# remove the invalid data
 images_df = images_df.dropna()
 
 fig = plt.figure()
-#size of the figure
+# size of the figure
 fig.set_size_inches(10, 8)
 ax = fig.add_subplot(111, projection="3d")
 x = images_df["F_stop(/f)"]
