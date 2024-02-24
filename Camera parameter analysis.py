@@ -1,5 +1,8 @@
 # %% [markdown]
-# # 导入需要使用的包，指定文件路径和图片类型 | Import the necessary packages and specify the file path and image type to be used
+# # 统计目录下照片的多种信息如焦距、光圈、快门速度等，提供一些趣味以及尽头购买的参考 | Count the focal length, aperture, shutter speed, etc. of the photos in the directory, provide some fun and purchase reference
+
+# %% [markdown]
+# ## 导入需要使用的包，指定文件路径和图片类型 | Import the necessary packages and specify the file path and image type to be used
 
 # %%
 import pandas as pd
@@ -12,14 +15,20 @@ file_path = "D:\EOSR7"
 file_type_a = ".jpg", ".jpeg", ".png"
 file_type_A = tuple(map(str.upper, file_type_a))
 
+if not os.path.exists(file_path):
+    print("目录不存在")
+    sys.exit()
+
 print(file_type_a, file_type_A)
 
 # %% [markdown]
-# # 读取所有目录下的图片文件 | Read all image files in the directory
+# ## 读取所有目录下的图片文件 | Read all image files in the directory
 
 # %%
 # define a list to store the image's file pathes, including the subfolders
 jpg_path_list = []
+# set
+error_path_list = set()
 TOTAL_SIZE = 0
 for root, dirs, files in os.walk(file_path):
     for file in files:
@@ -31,7 +40,7 @@ print("The number of the image file is: ", TOTAL_SIZE)
 print(jpg_path_list[0:5])
 
 # %% [markdown]
-# # 定义需要使用的方法 | Define the methods to be used
+# ## 定义需要使用的方法 | Define the methods to be used
 
 # %%
 def get_focal_length(image_path):
@@ -43,6 +52,7 @@ def get_focal_length(image_path):
     try:
         focal_length = Image.open(image_path)._getexif()[37386]
     except:
+        error_path_list.add(image_path)
         PrintErrorImage(image_path)
         return
 
@@ -58,6 +68,7 @@ def get_F_stop(image_path):
     try:
         F_stop = Image.open(image_path)._getexif()[33437]
     except:
+        error_path_list.add(image_path)
         PrintErrorImage(image_path)
         return
     return F_stop
@@ -72,6 +83,7 @@ def get_ISO(image_path):
     try:
         ISO = Image.open(image_path)._getexif()[34855]
     except:
+        error_path_list.add(image_path)
         PrintErrorImage(image_path)
         return
     return ISO
@@ -86,6 +98,7 @@ def get_shutter_speed(image_path):
     try:
         shutter_speed = Image.open(image_path)._getexif()[33434]
     except:
+        error_path_list.add(image_path)
         PrintErrorImage(image_path)
         return
     return shutter_speed
@@ -106,7 +119,6 @@ def print_progress(progressName, current, total):
     :param total: the total number of the process
     """
     progress = current / total
-    # print % without 0
     sys.stdout.write(
         "\r"
         + progressName
@@ -117,10 +129,9 @@ def print_progress(progressName, current, total):
     sys.stdout.flush()
 
 # %% [markdown]
-# # 读取图片信息并存储到pandas的DataFrame中
+# ## 读取图片信息并存储到pandas的DataFrame中，速度可能较慢，待优化？ | Read the image information and store it in the pandas DataFrame, which may be slow, to be optimized?
 
 # %%
-# 提取快门速度、ISO值、焦距、光圈值的关系
 shutter_speed_list = []
 ISO_list = []
 focal_length_list = []
@@ -138,7 +149,6 @@ for jpg_path in jpg_path_list:
     print_progress("Reading Images", len(shutter_speed_list), len(jpg_path_list))
 
 # %%
-# 将数据存储到pandas中, index 为jpg_path_list
 data = {
     "shutter_speed(s)": shutter_speed_list,
     "ISO": ISO_list,
@@ -146,10 +156,11 @@ data = {
     "F_stop(/f)": F_stop_list,
 }
 images_df = pd.DataFrame(data, index=jpg_path_list)
+print("\n The error image list is: ", error_path_list.__str__().replace("//", "/"))
 images_df
 
 # %% [markdown]
-# # 搜索目录内图片名称来确保图片是否被正确读取 | Search the directory for image names to ensure that the images are read correctly
+# ## 搜索目录内图片名称来确保图片是否被正确读取 | Search the directory for image names to ensure that the images are read correctly
 # 
 
 # %%
@@ -159,10 +170,10 @@ for index in images_df.index:
         print(target_image_path + " was found at index: ", index)
 
 # %% [markdown]
-# # 分析图片的焦距（如果你有一个变焦镜头的话） | Analyze the focal length of the image (if you have a zoom lens)
+# ## 分析图片的焦距（如果你有一个变焦镜头的话） | Analyze the focal length of the image (if you have a zoom lens)
 
 # %%
-# 定义一个焦段字典，以焦段为键，以数量为值: 8-15,16-24,25-35,35-50,50-70,70-105,105-135,135-200,200-300,300-400,400-600,600-800,800-1200,1200-1600,1600-2000
+# 定义一个焦段字典，以焦段为键，以数量为值|define a dictionary to store the focal length as the key and the number as the value
 focal_length_dict = {
     "8-15 ": 0,
     "16-24": 0,
@@ -248,7 +259,7 @@ plt.show(block=False)
 # 以上统计结果可以一定程度上反映出自己喜欢的焦段（前提是你有一个变焦镜头），可以帮助自己更好的选择镜头。
 
 # %% [markdown]
-# ## 汇合常用焦段
+# ### 汇合常用焦段
 
 # %%
 # 自定义一个常用焦距区间dict，以焦距区间为键，以数量为值
@@ -292,7 +303,7 @@ plt.ylabel("number of the image")
 plt.show(block=False)
 
 # %% [markdown]
-# # 分析图片的光圈
+# ## 分析图片的光圈
 
 # %%
 # 统计光圈值，遍历images_df,获取每张图片的光圈值,如果光圈值不在字典中，则将其添加到字典中
@@ -335,13 +346,13 @@ plt.xticks(rotation=0)
 plt.show(block=False)
 
 # %% [markdown]
-# # 分析图片的快门速度？
+# ## 分析图片的快门速度？
 
 # %%
 # To be continued??
 
 # %% [markdown]
-# # 快门速度、光圈、焦距之间的关系？| Relationship between shutter speed, aperture, and focal length?
+# ## 快门速度、光圈、焦距之间的关系？| Relationship between shutter speed, aperture, and focal length?
 
 # %%
 # 以光圈值为y轴，快门速度为x轴，绘制散点图; 以光圈值为x轴，ISO值为y轴，绘制散点图; 以焦距为x轴，快门速度为y轴，绘制散点图; 以焦距为x轴，ISO值为y轴，绘制散点图;
