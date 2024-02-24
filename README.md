@@ -2,7 +2,7 @@
 我无聊的时候突然想到可以分析一些照片的信息，万一有什么不得了的发现？又或者就是学习罢了。
 这是一个简单的照片分析脚本，可以获取指定目录下你拍摄的照片信息，如焦距、光圈、ISO等，并提供一些分析结果。  
 脚本的主要目的是分析你的焦段偏好，便于了解自己更喜欢什么焦段的拍摄，给购买相机提供参考。
-**这需要你使用变焦镜头，如24mm~105mm，18mm~150mm的镜头**
+**这需要你使用变焦镜头，如24mm-105mm，18mm-150mm的镜头**
 
 # Photo Parameters Analysis Script
 I suddenly thought of analyzing some information about photos when I was bored, what if I discover something extraordinary? Or maybe it's just for learning.  
