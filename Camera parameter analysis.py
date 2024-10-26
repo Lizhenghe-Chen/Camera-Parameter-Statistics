@@ -5,13 +5,13 @@
 # ## 导入需要使用的包，指定文件路径和图片类型 | Import the necessary packages and specify the file path and image type to be used
 
 # %%
-import pandas as pd
+import pandas as pd  # pip install pyarrow may be suggested
 import matplotlib.pyplot as plt
 import os
-from PIL import Image
+from PIL import Image  # https://pillow.readthedocs.io/en/stable/releasenotes/3.1.0.html
 import sys
 
-file_path = "D:\EOSR7"
+file_path = "K:\BaiduSyncdisk\Photos"
 file_type_a = ".jpg", ".jpeg", ".png"
 file_type_A = tuple(map(str.upper, file_type_a))
 
@@ -41,6 +41,8 @@ print(jpg_path_list[0:5])
 
 # %% [markdown]
 # ## 定义需要使用的方法 | Define the methods to be used
+# ``` ref: https://exiv2.org/tags.html ```
+# 
 
 # %%
 def get_focal_length(image_path):
@@ -104,6 +106,24 @@ def get_shutter_speed(image_path):
     return shutter_speed
 
 
+def get_metadata(image_path):
+    """
+    Fetches focal length, F-stop, ISO, and shutter speed of an image in one function call.
+    """
+    try:
+        img = Image.open(image_path)
+        exif_data = img._getexif()
+        focal_length = exif_data.get(37386)
+        F_stop = exif_data.get(33437)
+        ISO = exif_data.get(34855)
+        shutter_speed = exif_data.get(33434)
+    except Exception as e:
+        error_path_list.add(image_path)
+        PrintErrorImage(image_path)
+        return None, None, None, None
+    return shutter_speed, ISO, focal_length, F_stop
+
+
 def PrintErrorImage(image_path):
     print(
         "Error image: ",
@@ -147,6 +167,49 @@ for jpg_path in jpg_path_list:
     focal_length_list.append(focal_length)
     F_stop_list.append(F_stop)
     print_progress("Reading Images", len(shutter_speed_list), len(jpg_path_list))
+
+# %%
+# from concurrent.futures import ThreadPoolExecutor, as_completed
+# import sys
+
+
+# # 创建列表以存储元数据
+# shutter_speed_list = []
+# ISO_list = []
+# focal_length_list = []
+# F_stop_list = []
+
+# # 使用并行执行并添加进度显示
+# total_images = len(jpg_path_list)
+# completed_images = 0
+
+# with ThreadPoolExecutor() as executor:
+#     # 提交任务并获得future对象
+#     futures = {
+#         executor.submit(get_metadata, jpg_path): jpg_path
+#         for jpg_path in jpg_path_list
+#     }
+
+#     # 使用 as_completed 逐个处理已完成的任务
+#     for future in as_completed(futures):
+#         result = future.result()  # 获取结果
+#         shutter_speed, ISO, focal_length, F_stop = result
+
+#         # 将结果添加到对应的列表中
+#         shutter_speed_list.append(shutter_speed)
+#         ISO_list.append(ISO)
+#         focal_length_list.append(focal_length)
+#         F_stop_list.append(F_stop)
+
+#         # 更新已完成数量和百分比
+#         completed_images += 1
+#         progress = (completed_images / total_images) * 100
+#         sys.stdout.write(
+#             f"\rProgress: [{completed_images}/{total_images}] {progress:.2f}%"
+#         )
+#         sys.stdout.flush()
+
+# print("\n数据读取完成！")
 
 # %%
 data = {
