@@ -106,6 +106,31 @@ def get_shutter_speed(image_path):
     return shutter_speed
 
 
+import piexif
+
+
+def get_metadata_piexif(image_path):
+    """
+    Fetches focal length, F-stop, ISO, and shutter speed of an image in one function call.
+    """
+    try:
+        # 使用 piexif 加载图片的 EXIF 数据
+        exif_data = piexif.load(image_path)
+        focal_length = exif_data["Exif"].get(37386)  # 焦距
+        focal_length = focal_length[0] / focal_length[1]
+        F_stop = exif_data["Exif"].get(33437)  # 光圈
+        F_stop = F_stop[0] / F_stop[1]
+        ISO = exif_data["Exif"].get(34855)  # ISO
+        shutter_speed = exif_data["Exif"].get(33434)  # 快门速度
+        shutter_speed = shutter_speed[0] / shutter_speed[1]
+    except Exception as e:
+        error_path_list.add(image_path)
+        # PrintErrorImage(image_path)
+        return None, None, None, None
+
+    return shutter_speed, ISO, focal_length, F_stop
+
+
 def get_metadata(image_path):
     """
     Fetches focal length, F-stop, ISO, and shutter speed of an image in one function call.
@@ -120,7 +145,7 @@ def get_metadata(image_path):
     except Exception as e:
         error_path_list.add(image_path)
         PrintErrorImage(image_path)
-        return None, None, None, None
+        # return None, None, None, None
     return shutter_speed, ISO, focal_length, F_stop
 
 
@@ -149,7 +174,28 @@ def print_progress(progressName, current, total):
     sys.stdout.flush()
 
 # %% [markdown]
-# ## 读取图片信息并存储到pandas的DataFrame中，速度可能较慢，待优化？ | Read the image information and store it in the pandas DataFrame, which may be slow, to be optimized?
+# ## 读取图片信息并存储到pandas的DataFrame中|Read the image information and store it in the pandas DataFrame
+# 速度可能较慢，待优化？ | May be slow, to be optimized?
+
+# %%
+# shutter_speed_list = []
+# ISO_list = []
+# focal_length_list = []
+# F_stop_list = []
+# for jpg_path in jpg_path_list:
+#     shutter_speed = get_shutter_speed(jpg_path)
+#     ISO = get_ISO(jpg_path)
+#     focal_length = get_focal_length(jpg_path)
+#     F_stop = get_F_stop(jpg_path)
+
+#     shutter_speed_list.append(shutter_speed)
+#     ISO_list.append(ISO)
+#     focal_length_list.append(focal_length)
+#     F_stop_list.append(F_stop)
+#     print_progress("Reading Images", len(shutter_speed_list), len(jpg_path_list))
+
+# %% [markdown]
+# ## A much much faster way to read the image information is to use the `piexif` !! Because there is no need to open the image file, just read the exif information directly. | 一个更快的方法是使用`piexif`读取图片信息，因为不需要打开图片文件，直接读取exif信息即可:
 
 # %%
 shutter_speed_list = []
@@ -157,59 +203,15 @@ ISO_list = []
 focal_length_list = []
 F_stop_list = []
 for jpg_path in jpg_path_list:
-    shutter_speed = get_shutter_speed(jpg_path)
-    ISO = get_ISO(jpg_path)
-    focal_length = get_focal_length(jpg_path)
-    F_stop = get_F_stop(jpg_path)
-
+    shutter_speed, ISO, focal_length, F_stop = get_metadata_piexif(jpg_path)
     shutter_speed_list.append(shutter_speed)
     ISO_list.append(ISO)
     focal_length_list.append(focal_length)
     F_stop_list.append(F_stop)
     print_progress("Reading Images", len(shutter_speed_list), len(jpg_path_list))
 
-# %%
-# from concurrent.futures import ThreadPoolExecutor, as_completed
-# import sys
-
-
-# # 创建列表以存储元数据
-# shutter_speed_list = []
-# ISO_list = []
-# focal_length_list = []
-# F_stop_list = []
-
-# # 使用并行执行并添加进度显示
-# total_images = len(jpg_path_list)
-# completed_images = 0
-
-# with ThreadPoolExecutor() as executor:
-#     # 提交任务并获得future对象
-#     futures = {
-#         executor.submit(get_metadata, jpg_path): jpg_path
-#         for jpg_path in jpg_path_list
-#     }
-
-#     # 使用 as_completed 逐个处理已完成的任务
-#     for future in as_completed(futures):
-#         result = future.result()  # 获取结果
-#         shutter_speed, ISO, focal_length, F_stop = result
-
-#         # 将结果添加到对应的列表中
-#         shutter_speed_list.append(shutter_speed)
-#         ISO_list.append(ISO)
-#         focal_length_list.append(focal_length)
-#         F_stop_list.append(F_stop)
-
-#         # 更新已完成数量和百分比
-#         completed_images += 1
-#         progress = (completed_images / total_images) * 100
-#         sys.stdout.write(
-#             f"\rProgress: [{completed_images}/{total_images}] {progress:.2f}%"
-#         )
-#         sys.stdout.flush()
-
-# print("\n数据读取完成！")
+# %% [markdown]
+# Alittle bit faster version by using ThreadPoolExecutor:
 
 # %%
 data = {
@@ -219,8 +221,13 @@ data = {
     "F_stop(/f)": F_stop_list,
 }
 images_df = pd.DataFrame(data, index=jpg_path_list)
-print("\n The error image list is: ", error_path_list.__str__().replace("//", "/"))
 images_df
+# # save to csv in the same folder
+# images_df.to_csv("images_metadata.csv")
+
+# %%
+error_images_df = pd.DataFrame(error_path_list, columns=["Error Image Path"])
+error_images_df
 
 # %% [markdown]
 # ## 搜索目录内图片名称来确保图片是否被正确读取 | Search the directory for image names to ensure that the images are read correctly
@@ -262,9 +269,11 @@ def count_focal_length(df, dict):
     # get all
     for index, row in df.iterrows():
         focal_length = row["focal_length(mm)"]
-        if focal_length is None:
+        if pd.isna(focal_length):
             invalid_count += 1
-            print("Invalid focal length", index)
+            progress += 1
+            print_progress("Counting F-stop", progress, len(df))
+            # print("Invalid focal length", index)
             continue
         if focal_length < 15:
             dict["8-15 "] += 1
@@ -377,11 +386,13 @@ def count_F_stop(df, dict):
     progress = 0
     invalid_count = 0
     for index, row in df.iterrows():
-        if row["F_stop(/f)"] is None:
-            print("Invalid F-stop", index)
-            invalid_count += 1
-            continue
         F_stop = row["F_stop(/f)"]
+        if pd.isna(F_stop):
+            invalid_count += 1
+            progress += 1
+            print_progress("Counting F-stop", progress, len(df))
+            # print("Invalid F-stop", index)
+            continue
         if F_stop not in dict:
             dict[F_stop] = 1
         else:
